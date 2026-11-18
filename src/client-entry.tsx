@@ -20,7 +20,8 @@ type ChatEntry = { id: string; url: string; title: string; provider: ProviderId;
 const initialChats: ChatEntry[] = PROVIDERS.map((provider) => ({ id: provider.id, url: provider.url, title: provider.name, provider: provider.id }))
 
 const css = `
-.pc-root{--pc-bg:var(--dsw-alias-bg-base,#101214);--pc-base:var(--dsw-alias-bg-base,#101214);--pc-layer:var(--dsw-alias-bg-layer-1,#1b1e23);--pc-layer2:var(--dsw-alias-bg-layer-2,#22262c);--pc-line:var(--dsw-alias-border-l3,#2d3138);--pc-line2:var(--dsw-alias-border-l2,#414751);--pc-ink:var(--dsw-alias-label-primary,#f4f5f6);--pc-ink2:var(--dsw-alias-label-secondary,#c2c7cf);--pc-ink3:var(--dsw-alias-label-tertiary,#9da3ad);--pc-sel:color-mix(in srgb,var(--dsw-alias-brand-primary,#285fc2) 14%,transparent);--pc-accent:var(--dsw-alias-button-primary-fill,#285fc2);--pc-accent-hover:var(--dsw-alias-button-primary-hover,#3a70d4);--pc-ok:var(--dsw-alias-state-success-primary,#71c99b);--pc-warn:var(--dsw-alias-state-warn-primary,#e0b25c);display:grid;grid-template-columns:minmax(0,1fr) 320px;height:100%;min-height:0;background:var(--pc-base);color:var(--pc-ink);font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.pc-root{--pc-bg:var(--dsw-alias-bg-base,#101214);--pc-base:var(--dsw-alias-bg-base,#101214);--pc-layer:var(--dsw-alias-bg-layer-1,#1b1e23);--pc-layer2:var(--dsw-alias-bg-layer-2,#22262c);--pc-line:var(--dsw-alias-border-l3,#2d3138);--pc-line2:var(--dsw-alias-border-l2,#414751);--pc-ink:var(--dsw-alias-label-primary,#f4f5f6);--pc-ink2:var(--dsw-alias-label-secondary,#c2c7cf);--pc-ink3:var(--dsw-alias-label-tertiary,#9da3ad);--pc-sel:color-mix(in srgb,var(--dsw-alias-brand-primary,#285fc2) 14%,transparent);--pc-accent:var(--dsw-alias-button-primary-fill,#285fc2);--pc-accent-hover:var(--dsw-alias-button-primary-hover,#3a70d4);--pc-ok:var(--dsw-alias-state-success-primary,#71c99b);--pc-warn:var(--dsw-alias-state-warn-primary,#e0b25c);position:relative;overflow:hidden;display:grid;grid-template-columns:minmax(0,1fr) 320px;height:100%;min-height:0;background:var(--pc-base);color:var(--pc-ink);font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;transition:grid-template-columns 160ms cubic-bezier(.2,0,0,1)}
+.pc-root.side-collapsed{grid-template-columns:minmax(0,1fr) 0px}
 .pc-root *{box-sizing:border-box}
 .pc-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--pc-bg)}
 .pc-top{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
@@ -52,7 +53,10 @@ const css = `
 .pc-browser-top{height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
 .pc-browser-host{flex:1;min-height:0;background:#fff}
 .pc-browser-hint{padding:24px;color:#6b7280;font-size:12px}
-.pc-side{min-height:0;border-left:1px solid var(--pc-line);background:var(--pc-base);display:flex;flex-direction:column}
+.pc-side{min-height:0;border-left:1px solid var(--pc-line);background:var(--pc-base);display:flex;flex-direction:column;overflow:hidden;transition:opacity 120ms}
+.pc-root.side-collapsed .pc-side{opacity:0;visibility:hidden;pointer-events:none;border-left-width:0}
+.pc-side-tab{display:flex;position:absolute;right:0;top:50%;transform:translateY(-50%);z-index:5;width:28px;height:104px;border:1px solid var(--pc-line);border-right:0;border-radius:6px 0 0 6px;background:var(--pc-layer);color:var(--pc-ink2);font:11px/1.2 inherit;cursor:pointer;align-items:center;justify-content:center;writing-mode:vertical-rl;letter-spacing:.08em;padding:0}
+.pc-side-tab:hover{background:var(--pc-layer2);color:var(--pc-ink)}
 .pc-side-head{height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--pc-line)}
 .pc-side-head strong{font-size:12px;font-weight:600}
 .pc-icon{width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--pc-ink3);cursor:pointer;font:13px/1 inherit}
@@ -70,7 +74,8 @@ const css = `
 .pc-link{border:0;background:transparent;color:var(--pc-accent);font:11px/1.4 inherit;padding:0;cursor:pointer;text-align:left}
 .pc-wide{width:100%}
 .pc-empty{padding:16px;border:1px dashed var(--pc-line2);border-radius:8px;color:var(--pc-ink3);font-size:11px;line-height:1.6}
-@media (max-width:860px){.pc-root{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}.pc-side{max-height:46%;border-left:0;border-top:1px solid var(--pc-line)}}
+@media (max-width:860px){.pc-root{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}.pc-root.side-collapsed{grid-template-rows:minmax(0,1fr) 0}.pc-side{max-height:46%;border-left:0;border-top:1px solid var(--pc-line)}}
+@media (prefers-reduced-motion:reduce){.pc-root,.pc-side{transition:none}}
 `
 
 function sidebarRightOf(ctx: DshContext): DshSidebarRight | undefined {
@@ -169,6 +174,14 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
   const [selected, setSelected] = useState('deepseek')
   const sidebarRight = sidebarRightOf(ctx)
   const [browserMode, setBrowserMode] = useState<'official' | 'embedded'>(sidebarRight ? 'official' : 'embedded')
+  const [sideCollapsed, setSideCollapsed] = useState(() => {
+    try { return localStorage.getItem('plug-chat:side-collapsed') === '1' } catch { return false }
+  })
+  const toggleSide = () => setSideCollapsed(value => {
+    const next = !value
+    try { localStorage.setItem('plug-chat:side-collapsed', next ? '1' : '0') } catch { /* storage may be unavailable */ }
+    return next
+  })
   const [adding, setAdding] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
   const [sessions, setSessions] = useState<SessionTarget[]>([])
@@ -229,7 +242,7 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
     } catch (error) { setStatus(error instanceof Error ? error.message : '发送失败；去重基线未更新。') } finally { setBusy(false) }
   }
   if (!entry) return <div className="pc-root"><style>{css}</style><div className="pc-stage"><div className="pc-empty">还没有 Chat。点右上角 + 添加一个支持的网页地址。</div></div></div>
-  return <div className="pc-root">
+  return <div className={'pc-root' + (sideCollapsed ? ' side-collapsed' : '')}>
     <style>{css}</style>
     <main className="pc-main">
       <div className="pc-top">
@@ -250,8 +263,11 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
         ? <OfficialLauncher entry={entry} onOpen={() => openOfficial(entry)} onEmbed={() => setBrowserMode('embedded')} status={status} />
         : <NativeBrowser entry={entry} browser={browser?.protocolVersion === 1 ? browser.browser : undefined} onStatus={setStatus} onSnapshot={onSnapshot} />}
     </main>
-    <aside className="pc-side">
-      <div className="pc-side-head"><strong>发送到 Session</strong><button type="button" className="pc-icon" aria-label="刷新 Session" title="刷新 Session" onClick={() => void reloadSessions()}>↻</button></div>
+    <aside id="pc-side" className="pc-side" aria-hidden={sideCollapsed || undefined}>
+      <div className="pc-side-head"><strong>发送到 Session</strong><div style={{ display: 'flex', gap: 2 }}>
+        <button type="button" className="pc-icon" aria-label="刷新 Session" title="刷新 Session" onClick={() => void reloadSessions()}>↻</button>
+        <button type="button" className="pc-icon" aria-label="收起发送面板" title="收起发送面板" aria-expanded={!sideCollapsed} aria-controls="pc-side" onClick={toggleSide}>›</button>
+      </div></div>
       <div className="pc-side-body">
         {browserMode === 'official'
           ? <div className="pc-note"><div>官方浏览器模式不读取页面内容。需要发送上下文时，切换到内嵌模式并重新读取。</div><button type="button" className="pc-link" onClick={() => setBrowserMode('embedded')}>切换到内嵌模式</button></div>
@@ -279,6 +295,7 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
         <div className="pc-status" role="status" aria-live="polite">{status}</div>
       </div>
     </aside>
+    {sideCollapsed && <button type="button" className="pc-side-tab" aria-label="展开发送面板" aria-expanded="false" aria-controls="pc-side" onClick={toggleSide}>‹ 发送到 Session</button>}
   </div>
 }
 
