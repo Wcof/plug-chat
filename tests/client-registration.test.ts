@@ -29,12 +29,13 @@ describe('DSH client 注册契约', () => {
       },
     } as unknown as DshContext
     apply(ctx)
-    expect(injectedSlots).toEqual(['sidebar.panellist', 'main'])
+    // 与官方插件一致：先 main，后 sidebar.panellist。
+    expect(injectedSlots).toEqual(['main', 'sidebar.panellist'])
     expect(registered).toHaveLength(2)
-    expect(registered[0].name).toBe('sidebar.panellist')
-    expect(registered[0].id).toBe('plug-chat')
-    expect(registered[1].name).toBe('main')
-    expect(registered[1].key).toBe(registered[0].id)
+    expect(registered[0].name).toBe('main')
+    expect(registered[0].key).toBe('plug-chat')
+    expect(registered[1].name).toBe('sidebar.panellist')
+    expect(registered[1].id).toBe(registered[0].key)
   })
 
   it('slots 缺失时明确报错，不静默跳过', () => {

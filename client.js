@@ -481,11 +481,11 @@ function apply(ctx) {
   const slots = ctx.slots;
   if (!slots) throw new Error("Plug Chat\uFF1A\u5BBF\u4E3B\u672A\u63D0\u4F9B slots \u670D\u52A1\uFF0C\u65E0\u6CD5\u6CE8\u518C Chat \u9762\u677F\u3002");
   const Panel = () => /* @__PURE__ */ import_react.default.createElement(ChatPanel, { ctx });
+  slots.inject("main", () => slots.register({ name: "main", key: "plug-chat" }, Panel));
   slots.inject("sidebar.panellist", () => slots.register(
-    { name: "sidebar.panellist", id: "plug-chat", order: 25, label: () => "Chat", locale: "plug-chat" },
+    { name: "sidebar.panellist", id: "plug-chat", order: 25, label: () => "Chat" },
     () => /* @__PURE__ */ import_react.default.createElement("span", { "aria-hidden": "true" }, "\u25CC")
   ));
-  slots.inject("main", () => slots.register({ name: "main", key: "plug-chat", locale: "plug-chat" }, Panel));
 }
 function mountStandalone(element, ctx) {
   (0, import_client.createRoot)(element).render(/* @__PURE__ */ import_react.default.createElement(ChatPanel, { ctx }));

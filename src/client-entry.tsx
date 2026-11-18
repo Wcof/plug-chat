@@ -161,11 +161,13 @@ export function apply(ctx: DshContext): void {
   const slots = ctx.slots as ClientSlots | undefined
   if (!slots) throw new Error('Plug Chat：宿主未提供 slots 服务，无法注册 Chat 面板。')
   const Panel = () => <ChatPanel ctx={ctx} />
+  // 与官方插件一致：先注册 main，再注册侧栏入口；两处 id/key 必须同为 plug-chat。
+  // 不声明 locale：本项目没有注册同名词典命名空间，label 直接返回字面量。
+  slots.inject('main', () => slots.register({ name: 'main', key: 'plug-chat' }, Panel))
   slots.inject('sidebar.panellist', () => slots.register(
-    { name: 'sidebar.panellist', id: 'plug-chat', order: 25, label: () => 'Chat', locale: 'plug-chat' },
+    { name: 'sidebar.panellist', id: 'plug-chat', order: 25, label: () => 'Chat' },
     () => <span aria-hidden="true">◌</span>,
   ))
-  slots.inject('main', () => slots.register({ name: 'main', key: 'plug-chat', locale: 'plug-chat' }, Panel))
 }
 
 export function mountStandalone(element: HTMLElement, ctx: DshContext): void { createRoot(element).render(<ChatPanel ctx={ctx} />) }
