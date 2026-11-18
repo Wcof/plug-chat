@@ -1,0 +1,60 @@
+{
+  "name": "plug-chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "在 APP 内管理网页 Chat，并将单个 Chat 的上下文发送到指定 Session。",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Wcof/plug-chat.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./icon": "./icons/plug-chat.svg",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale",
+    "icons",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true
+    }
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "validate:bundle": "node scripts/validate-bundle.mjs",
+    "check": "npm run typecheck && npm test && npm run build && npm run validate:bundle"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "esbuild": "0.28.2",
+    "jsdom": "31.0.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "vitest": "5.1.0"
+  }
+}

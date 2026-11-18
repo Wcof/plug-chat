@@ -1,0 +1,4 @@
+# Plug Chat 的 Client 半边注册原生 Chat 工作台入口。
+- insert:
+    - id: plug-chat
+      name: 'plug-chat'
