@@ -44,7 +44,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "validate:bundle": "node scripts/validate-bundle.mjs",
-    "check": "npm run typecheck && npm test && npm run build && npm run validate:bundle"
+    "check": "npm run typecheck && npm run build && npm test && npm run validate:bundle"
   },
   "devDependencies": {
     "@types/jsdom": "^30.0.0",
