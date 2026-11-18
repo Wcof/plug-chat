@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { getProvider, PROVIDERS, providerForUrl } from './core/providers'
+import { PROVIDERS, providerForUrl } from './core/providers'
 import type { ChatSnapshot, ProviderId, SessionTarget, TransferMode } from './core/types'
 import { TransferLedger } from './core/context'
 import { buildExtractionScript, normalizeExtractionResult } from './providers/extract'
-import { createDshAdapter, type DshContext, type SessionAdapter } from './adapters/dsh'
+import { createDshAdapter, type DshContext, type DshSidebarRight, type SessionAdapter } from './adapters/dsh'
 
 type WebviewElement = HTMLElement & {
   setAttribute(name: string, value: string): void
@@ -18,18 +18,67 @@ type WebviewElement = HTMLElement & {
 type ChatEntry = { id: string; url: string; title: string; provider: ProviderId; snapshot?: ChatSnapshot; status?: string }
 
 const initialChats: ChatEntry[] = PROVIDERS.map((provider) => ({ id: provider.id, url: provider.url, title: provider.name, provider: provider.id }))
-const styles: Record<string, React.CSSProperties> = {
-  root: { display: 'grid', gridTemplateColumns: '220px minmax(420px, 1fr) 320px', height: '100%', minHeight: 0, background: 'var(--dsw-alias-bg-base, #101214)', color: 'var(--dsw-alias-label-primary, #f4f5f6)', fontFamily: 'var(--dsw-font-family, -apple-system, BlinkMacSystemFont, sans-serif)', fontSize: 13 },
-  column: { minWidth: 0, minHeight: 0, borderRight: '1px solid var(--dsw-alias-border-l3, #2d3138)', display: 'flex', flexDirection: 'column' },
-  header: { height: 46, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 14px', borderBottom: '1px solid var(--dsw-alias-border-l3, #2d3138)', flex: '0 0 auto' },
-  list: { overflow: 'auto', padding: 8, display: 'grid', gap: 4, alignContent: 'start' },
-  button: { border: 0, borderRadius: 6, background: 'transparent', color: 'inherit', cursor: 'pointer', padding: '9px 10px', textAlign: 'left', font: 'inherit' },
-  input: { border: '1px solid var(--dsw-alias-border-l2, #414751)', borderRadius: 6, background: 'var(--dsw-alias-bg-layer-1, #1b1e23)', color: 'inherit', padding: '8px 9px', font: 'inherit', minWidth: 0 },
-  muted: { color: 'var(--dsw-alias-label-tertiary, #9da3ad)', fontSize: 12, lineHeight: 1.45 },
+
+const css = `
+.pc-root{--pc-bg:var(--dsw-alias-bg-base,#101214);--pc-base:var(--dsw-alias-bg-base,#101214);--pc-layer:var(--dsw-alias-bg-layer-1,#1b1e23);--pc-layer2:var(--dsw-alias-bg-layer-2,#22262c);--pc-line:var(--dsw-alias-border-l3,#2d3138);--pc-line2:var(--dsw-alias-border-l2,#414751);--pc-ink:var(--dsw-alias-label-primary,#f4f5f6);--pc-ink2:var(--dsw-alias-label-secondary,#c2c7cf);--pc-ink3:var(--dsw-alias-label-tertiary,#9da3ad);--pc-sel:color-mix(in srgb,var(--dsw-alias-brand-primary,#285fc2) 14%,transparent);--pc-accent:var(--dsw-alias-button-primary-fill,#285fc2);--pc-accent-hover:var(--dsw-alias-button-primary-hover,#3a70d4);--pc-ok:var(--dsw-alias-state-success-primary,#71c99b);--pc-warn:var(--dsw-alias-state-warn-primary,#e0b25c);display:grid;grid-template-columns:minmax(0,1fr) 320px;height:100%;min-height:0;background:var(--pc-base);color:var(--pc-ink);font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.pc-root *{box-sizing:border-box}
+.pc-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--pc-bg)}
+.pc-top{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
+.pc-tabs{display:flex;align-items:center;gap:2px;overflow:auto;flex:1;min-width:0;scrollbar-width:none}
+.pc-tabs::-webkit-scrollbar{display:none}
+.pc-tab{height:30px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--pc-ink3);font:12px/1 inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;transition:background-color 120ms,color 120ms}
+.pc-tab:hover{color:var(--pc-ink2);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12))}
+.pc-tab.on{color:var(--pc-ink);background:var(--pc-sel);box-shadow:inset 2px 0 0 var(--pc-accent)}
+.pc-dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;background:var(--pc-ink3)}
+.pc-plus{width:28px;height:28px;flex:0 0 auto;border:1px solid var(--pc-line);border-radius:6px;background:transparent;color:var(--pc-ink3);font:16px/1 inherit;cursor:pointer}
+.pc-plus:hover{color:var(--pc-ink);border-color:var(--pc-line2)}
+.pc-add{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
+.pc-stage{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:28px}
+.pc-card{width:min(480px,100%);border:1px solid var(--pc-line);border-radius:10px;background:var(--pc-layer);padding:22px}
+.pc-eyebrow{font-size:11px;color:var(--pc-ink3)}
+.pc-h1{font-size:15px;font-weight:600;margin:6px 0 6px}
+.pc-sub{font-size:12px;color:var(--pc-ink2);line-height:1.7}
+.pc-meta{font-size:11px;color:var(--pc-ink3);line-height:1.55}
+.pc-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.pc-btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid transparent;font:600 12px/1 inherit;cursor:pointer;white-space:nowrap}
+.pc-btn.primary{background:var(--pc-accent);color:var(--dsw-alias-label-on-color,#fff)}
+.pc-btn.ghost{background:transparent;border-color:var(--pc-line2);color:var(--pc-ink2)}
+.pc-btn.primary:hover:not(:disabled){background:var(--pc-accent-hover)}
+.pc-btn.ghost:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));color:var(--pc-ink)}
+.pc-btn:disabled{opacity:.45;cursor:default}
+.pc-small{height:26px;padding:0 9px;font-size:11px}
+.pc-status{font-size:11px;color:var(--pc-ink3);min-height:30px;line-height:1.55;margin-top:10px}
+.pc-browser{flex:1;min-height:0;display:flex;flex-direction:column}
+.pc-browser-top{height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
+.pc-browser-host{flex:1;min-height:0;background:#fff}
+.pc-browser-hint{padding:24px;color:#6b7280;font-size:12px}
+.pc-side{min-height:0;border-left:1px solid var(--pc-line);background:var(--pc-base);display:flex;flex-direction:column}
+.pc-side-head{height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--pc-line)}
+.pc-side-head strong{font-size:12px;font-weight:600}
+.pc-icon{width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--pc-ink3);cursor:pointer;font:13px/1 inherit}
+.pc-icon:hover{background:var(--pc-layer);color:var(--pc-ink)}
+.pc-side-body{min-height:0;overflow:auto;padding:12px;display:grid;gap:10px;align-content:start}
+.pc-group{border:1px solid var(--pc-line);border-radius:8px;background:var(--pc-layer);padding:10px 12px;display:grid;gap:8px}
+.pc-label{font-size:11px;color:var(--pc-ink3)}
+.pc-source{font-size:12px;color:var(--pc-ink)}
+.pc-select,.pc-input,.pc-area{width:100%;border:1px solid var(--pc-line2);border-radius:6px;background:var(--pc-base);color:var(--pc-ink);font:12px/1.4 inherit;padding:0 9px;height:32px}
+.pc-area{height:auto;min-height:64px;padding:8px 9px;resize:vertical}
+.pc-select:focus,.pc-input:focus,.pc-area:focus,.pc-btn:focus-visible,.pc-tab:focus-visible,.pc-plus:focus-visible,.pc-icon:focus-visible{outline:2px solid var(--pc-accent);outline-offset:2px}
+.pc-row{display:grid;gap:5px}
+.pc-check{display:flex;gap:6px;align-items:flex-start;font-size:11px;color:var(--pc-ink2);line-height:1.45}
+.pc-note{font-size:11px;color:var(--pc-warn);background:color-mix(in srgb,var(--pc-warn) 8%,transparent);border:1px solid color-mix(in srgb,var(--pc-warn) 40%,transparent);border-radius:6px;padding:8px 10px;line-height:1.55;display:grid;gap:6px}
+.pc-link{border:0;background:transparent;color:var(--pc-accent);font:11px/1.4 inherit;padding:0;cursor:pointer;text-align:left}
+.pc-wide{width:100%}
+.pc-empty{padding:16px;border:1px dashed var(--pc-line2);border-radius:8px;color:var(--pc-ink3);font-size:11px;line-height:1.6}
+@media (max-width:860px){.pc-root{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}.pc-side{max-height:46%;border-left:0;border-top:1px solid var(--pc-line)}}
+`
+
+function sidebarRightOf(ctx: DshContext): DshSidebarRight | undefined {
+  try { return ctx.sidebarRight } catch { return undefined }
 }
 
-function IconButton({ label, onClick, disabled }: { label: string; onClick: () => void; disabled?: boolean }) {
-  return <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick} style={{ ...styles.button, padding: 6, opacity: disabled ? .45 : 1, textAlign: 'center' }}>{label === '刷新' ? '↻' : '+'}</button>
+function colorOf(id: ProviderId): string {
+  return PROVIDERS.find((provider) => provider.id === id)?.color ?? '#9da3ad'
 }
 
 function NativeBrowser({ entry, onStatus, onSnapshot, browser }: { entry: ChatEntry; onStatus: (message: string) => void; onSnapshot: (snapshot: ChatSnapshot) => void; browser?: { acquire(workspace: string): Promise<{ lease: string; partition: string }>; release(lease: string): Promise<void> } }) {
@@ -44,7 +93,6 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }: { entry: ChatEn
     const run = async () => {
       if (!browser) { onStatus('当前宿主没有可用的原生浏览器桥接。'); return }
       try {
-        const provider = providerForUrl(entry.url)
         const reservation = await browser.acquire('plug-chat')
         lease = reservation.lease
         if (disposed) { await browser.release(lease); return }
@@ -78,7 +126,7 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }: { entry: ChatEn
         })
         if (disposed) return
         await view.loadURL(entry.url)
-        onStatus(provider.name + ' 已打开；登录状态由宿主浏览器管理。')
+        onStatus('已在内嵌浏览器打开；登录状态由宿主浏览器管理。')
       } catch (error) { onStatus(error instanceof Error ? error.message : '网页打开失败。') }
     }
     void run()
@@ -86,41 +134,42 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }: { entry: ChatEn
   }, [entry.id, entry.url, browser, onStatus])
 
   const extract = async () => {
-    const element = frameRef.current
-    if (!element) { onStatus('网页尚未准备好，请稍候。'); return }
+    const view = frameRef.current
+    if (!view) { onStatus('网页尚未准备好，请稍候。'); return }
     try {
-      const value = await element.executeJavaScript(buildExtractionScript(entry.provider), false)
+      const value = await view.executeJavaScript(buildExtractionScript(entry.provider), false)
       onSnapshot(normalizeExtractionResult(value))
       onStatus('已读取当前网页中已加载的 Chat 消息。')
     } catch (error) { onStatus(error instanceof Error ? error.message : 'Chat 提取失败。') }
   }
-  return <div style={{ minHeight: 0, flex: 1, display: 'grid', gridTemplateRows: '42px minmax(0, 1fr)' }}>
-    <div style={{ ...styles.header, height: 42 }}><span style={styles.muted}>{entry.url}</span><button type="button" onClick={extract} style={{ ...styles.button, background: '#285fc2', padding: '6px 10px' }}>读取 Chat</button></div>
-    <div ref={hostRef} style={{ minHeight: 0, position: 'relative', background: '#fff' }}><div style={{ ...styles.muted, padding: 24 }}>正在打开网页…</div></div>
+  return <div className="pc-browser">
+    <div className="pc-browser-top"><span className="pc-meta">内嵌模式 · {entry.title}</span><button type="button" className="pc-btn ghost pc-small" onClick={extract}>读取 Chat</button></div>
+    <div ref={hostRef} className="pc-browser-host"><div className="pc-browser-hint">正在打开网页…</div></div>
   </div>
 }
 
-function OfficialLauncher({ entry, onOpen, status }: { entry: ChatEntry; onOpen: () => void; status: string }) {
-  return <div style={{ padding: 28, display: 'grid', gap: 14, alignContent: 'start', maxWidth: 720 }}>
-    <div>
-      <div style={{ fontSize: 15, fontWeight: 600 }}>在宿主官方浏览器中打开</div>
-      <div style={{ ...styles.muted, marginTop: 6 }}>{entry.title} · {entry.url}</div>
+function OfficialLauncher({ entry, onOpen, onEmbed, status }: { entry: ChatEntry; onOpen: () => void; onEmbed: () => void; status: string }) {
+  return <div className="pc-stage">
+    <div className="pc-card">
+      <div className="pc-eyebrow">当前 Chat</div>
+      <div className="pc-h1">{entry.title}</div>
+      <div className="pc-sub">在 DeepSeek Harness 自带的右侧浏览器中打开。登录态、Cookie、前进后退都由宿主管理，插件不重绘官方页面。</div>
+      <div className="pc-meta" style={{ marginTop: 10 }}>官方浏览器模式不读取页面内容，因此「发送到 Session」暂不可用。</div>
+      <div className="pc-actions">
+        <button type="button" className="pc-btn primary" onClick={onOpen}>打开官方浏览器</button>
+        <button type="button" className="pc-btn ghost" onClick={onEmbed}>切换到内嵌模式</button>
+      </div>
+      <div className="pc-status" role="status" aria-live="polite">{status}</div>
     </div>
-    <div style={{ ...styles.muted, border: '1px solid var(--dsw-alias-border-l3, #2d3138)', borderRadius: 8, padding: '12px 14px', background: 'var(--dsw-alias-bg-layer-1, #1b1e23)', lineHeight: 1.65 }}>
-      页面由 DeepSeek Harness 自带的侧栏浏览器加载，登录态、Cookie、前进后退都由宿主管理；插件不重绘官方页面。
-      <br />该模式下插件不读取页面内容，所以「发送到 Session」暂不可用；需要复制上下文时切换到「内嵌（实验）」。
-    </div>
-    <div>
-      <button type="button" onClick={onOpen} style={{ ...styles.button, background: '#285fc2', padding: '8px 14px', fontWeight: 600 }}>在官方浏览器中打开</button>
-    </div>
-    <div role="status" aria-live="polite" style={styles.muted}>{status}</div>
   </div>
 }
 
 function ChatPanel({ ctx }: { ctx: DshContext }) {
   const [chats, setChats] = useState<ChatEntry[]>(initialChats)
   const [selected, setSelected] = useState('deepseek')
-  const [browserMode, setBrowserMode] = useState<'official' | 'embedded'>(ctx.sidebarRight ? 'official' : 'embedded')
+  const sidebarRight = sidebarRightOf(ctx)
+  const [browserMode, setBrowserMode] = useState<'official' | 'embedded'>(sidebarRight ? 'official' : 'embedded')
+  const [adding, setAdding] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
   const [sessions, setSessions] = useState<SessionTarget[]>([])
   const [targetId, setTargetId] = useState('')
@@ -146,11 +195,11 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
       const url = new URL(urlDraft.trim()).toString()
       const id = provider.id + '-' + Date.now().toString(36)
       setChats(items => [...items, { id, url, title: provider.name, provider: provider.id }])
-      setSelected(id); setUrlDraft('')
+      setSelected(id); setUrlDraft(''); setAdding(false)
     } catch (error) { setStatus(error instanceof Error ? error.message : '请输入支持的 Chat 地址。') }
   }
   const openOfficial = (chat: ChatEntry) => {
-    const right = ctx.sidebarRight
+    const right = sidebarRightOf(ctx)
     if (!right) { setStatus('当前宿主没有官方浏览器服务（sidebarRight 未提供）。'); return }
     try {
       right.openTab('browser', { params: { url: chat.url } })
@@ -179,37 +228,55 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
       setStatus('已发送。Session 已接收外部 Chat 资料；后续模型回复由宿主处理。')
     } catch (error) { setStatus(error instanceof Error ? error.message : '发送失败；去重基线未更新。') } finally { setBusy(false) }
   }
-  if (!entry) return <div style={{ padding: 24 }}>还没有 Chat。请添加一个支持的网页地址。</div>
-  return <div style={styles.root}>
-    <aside style={styles.column}>
-      <div style={styles.header}><strong>Chat</strong><IconButton label="刷新" onClick={() => void reloadSessions()} /></div>
-      <div style={{ padding: 10, display: 'flex', gap: 6 }}><input aria-label="添加 Chat 网页地址" value={urlDraft} onChange={event => setUrlDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addChat() }} placeholder="粘贴 Chat 网页地址" style={{ ...styles.input, flex: 1 }} /><IconButton label="添加" onClick={addChat} /></div>
-      <div style={styles.list}>{chats.map(item => <button key={item.id} type="button" onClick={() => { setSelected(item.id); if (browserMode === 'official') openOfficial(item) }} style={{ ...styles.button, background: item.id === selected ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}><span style={{ display: 'block', fontWeight: 600 }}>{item.title}</span><span style={styles.muted}>{item.url}</span>{item.snapshot && <span style={{ ...styles.muted, display: 'block', color: '#71c99b' }}>{item.snapshot.messages.length} 条已读取</span>}</button>)}</div>
-    </aside>
-    <main style={styles.column}>
-      <div style={{ ...styles.header, height: 42, gap: 8 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button type="button" aria-pressed={browserMode === 'official'} onClick={() => setBrowserMode('official')} style={{ ...styles.button, padding: '5px 9px', background: browserMode === 'official' ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}>官方浏览器</button>
-          <button type="button" aria-pressed={browserMode === 'embedded'} onClick={() => setBrowserMode('embedded')} style={{ ...styles.button, padding: '5px 9px', background: browserMode === 'embedded' ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}>内嵌（实验）</button>
+  if (!entry) return <div className="pc-root"><style>{css}</style><div className="pc-stage"><div className="pc-empty">还没有 Chat。点右上角 + 添加一个支持的网页地址。</div></div></div>
+  return <div className="pc-root">
+    <style>{css}</style>
+    <main className="pc-main">
+      <div className="pc-top">
+        <div className="pc-tabs">
+          {chats.map(item => <button key={item.id} type="button" className={'pc-tab' + (item.id === selected ? ' on' : '')} title={item.title} onClick={() => { setSelected(item.id); if (browserMode === 'official') openOfficial(item) }}>
+            <span className="pc-dot" style={{ background: colorOf(item.provider) }} />
+            {item.title}
+          </button>)}
         </div>
-        <button type="button" onClick={() => openOfficial(entry)} style={{ ...styles.button, padding: '5px 9px' }}>在官方浏览器打开</button>
+        <button type="button" className="pc-plus" aria-label="添加 Chat" title="添加 Chat" onClick={() => setAdding(value => !value)}>+</button>
       </div>
+      {adding && <div className="pc-add">
+        <input className="pc-input" aria-label="添加 Chat 网页地址" value={urlDraft} onChange={event => setUrlDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addChat() }} placeholder="粘贴 Chat 网页地址" />
+        <button type="button" className="pc-btn primary pc-small" onClick={addChat}>添加</button>
+        <button type="button" className="pc-btn ghost pc-small" onClick={() => { setAdding(false); setUrlDraft('') }}>取消</button>
+      </div>}
       {browserMode === 'official'
-        ? <OfficialLauncher entry={entry} onOpen={() => openOfficial(entry)} status={status} />
+        ? <OfficialLauncher entry={entry} onOpen={() => openOfficial(entry)} onEmbed={() => setBrowserMode('embedded')} status={status} />
         : <NativeBrowser entry={entry} browser={browser?.protocolVersion === 1 ? browser.browser : undefined} onStatus={setStatus} onSnapshot={onSnapshot} />}
     </main>
-    <aside style={{ ...styles.column, borderRight: 0 }}>
-      <div style={styles.header}><strong>发送到 Session</strong><IconButton label="刷新" onClick={() => void reloadSessions()} /></div>
-      <div style={{ padding: 14, overflow: 'auto', display: 'grid', gap: 12 }}>
-        {browserMode === 'official' && <div style={{ ...styles.muted, padding: '9px 10px', border: '1px solid #6b5527', borderRadius: 6, color: '#e0b25c', background: 'rgba(224,178,92,.06)' }}>官方浏览器模式下插件无法读取页面内容；需要发送上下文时，切换到「内嵌（实验）」并重新读取。</div>}
-        <label style={{ display: 'grid', gap: 5 }}>目标 Session<select aria-label="目标 Session" value={targetId} onChange={event => setTargetId(event.target.value)} style={styles.input}><option value="">选择 Session</option>{sessions.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
-        <label style={{ display: 'grid', gap: 5 }}>发送范围<select aria-label="发送范围" value={mode} onChange={event => setMode(event.target.value as TransferMode)} style={styles.input}><option value="incremental">增量（推荐）</option><option value="all">全部消息</option><option value="recent">最近消息</option><option value="selected">指定消息</option></select></label>
-        {mode === 'recent' && <label style={{ display: 'grid', gap: 5 }}>最近条数<input type="number" min={1} max={100} value={recentCount} onChange={event => setRecentCount(Number(event.target.value))} style={styles.input} /></label>}
-        {mode === 'selected' && snapshot && <div style={{ display: 'grid', gap: 4, maxHeight: 190, overflow: 'auto' }}>{snapshot.messages.map(message => <label key={message.id} style={{ display: 'flex', gap: 6, alignItems: 'start', ...styles.muted }}><input type="checkbox" checked={selectedIds.includes(message.id)} onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, message.id] : ids.filter(id => id !== message.id))} />{message.role === 'user' ? '用户' : '助手'}：{message.text.slice(0, 70)}</label>)}</div>}
-        <label style={{ display: 'grid', gap: 5 }}>继续任务<textarea aria-label="继续任务" rows={4} maxLength={4000} value={instruction} onChange={event => setInstruction(event.target.value)} placeholder="例如：提炼这段 Chat 的决策，并继续完成实现。" style={{ ...styles.input, resize: 'vertical' }} /></label>
-        <div style={{ ...styles.muted, padding: '9px 10px', background: 'var(--dsw-alias-bg-layer-1, #1b1e23)', borderRadius: 6 }}>{snapshot ? '来源：' + snapshot.title + ' · ' + snapshot.messages.length + ' 条消息' : '尚未读取 Chat'}<br />Chat 内容会作为外部资料发送；不会保存网页凭证。</div>
-        <button type="button" disabled={busy || !snapshot || !targetId} onClick={() => void send()} style={{ ...styles.button, background: busy ? '#46505e' : '#285fc2', textAlign: 'center', fontWeight: 600 }}>{busy ? '发送中…' : '发送到 Session'}</button>
-        <div role="status" aria-live="polite" style={{ ...styles.muted, minHeight: 45 }}>{status}</div>
+    <aside className="pc-side">
+      <div className="pc-side-head"><strong>发送到 Session</strong><button type="button" className="pc-icon" aria-label="刷新 Session" title="刷新 Session" onClick={() => void reloadSessions()}>↻</button></div>
+      <div className="pc-side-body">
+        {browserMode === 'official'
+          ? <div className="pc-note"><div>官方浏览器模式不读取页面内容。需要发送上下文时，切换到内嵌模式并重新读取。</div><button type="button" className="pc-link" onClick={() => setBrowserMode('embedded')}>切换到内嵌模式</button></div>
+          : <button type="button" className="pc-link" onClick={() => setBrowserMode('official')}>切换到官方浏览器</button>}
+        <div className="pc-group">
+          <div className="pc-label">来源</div>
+          <div className="pc-source">{snapshot ? entry.title : '尚未读取 Chat'}</div>
+          <div className="pc-meta">{snapshot ? snapshot.messages.length + ' 条消息' : '内嵌模式下点「读取 Chat」'}</div>
+        </div>
+        <div className="pc-group">
+          <div className="pc-label">目标 Session</div>
+          <select className="pc-select" aria-label="目标 Session" value={targetId} onChange={event => setTargetId(event.target.value)}><option value="">选择 Session</option>{sessions.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select>
+        </div>
+        <div className="pc-group">
+          <div className="pc-label">发送范围</div>
+          <select className="pc-select" aria-label="发送范围" value={mode} onChange={event => setMode(event.target.value as TransferMode)}><option value="incremental">增量（推荐）</option><option value="all">全部消息</option><option value="recent">最近消息</option><option value="selected">指定消息</option></select>
+          {mode === 'recent' && <div className="pc-row"><span className="pc-label">最近条数</span><input className="pc-input" type="number" min={1} max={100} value={recentCount} onChange={event => setRecentCount(Number(event.target.value))} /></div>}
+          {mode === 'selected' && snapshot && <div style={{ display: 'grid', gap: 4, maxHeight: 160, overflow: 'auto' }}>{snapshot.messages.map(message => <label key={message.id} className="pc-check"><input type="checkbox" checked={selectedIds.includes(message.id)} onChange={event => setSelectedIds(ids => event.target.checked ? [...ids, message.id] : ids.filter(id => id !== message.id))} />{message.role === 'user' ? '用户' : '助手'}：{message.text.slice(0, 60)}</label>)}</div>}
+        </div>
+        <div className="pc-group">
+          <div className="pc-label">继续任务</div>
+          <textarea className="pc-area" aria-label="继续任务" rows={4} maxLength={4000} value={instruction} onChange={event => setInstruction(event.target.value)} placeholder="例如：提炼这段 Chat 的决策，并继续完成实现。" />
+        </div>
+        <button type="button" className="pc-btn primary pc-wide" disabled={busy || !snapshot || !targetId} onClick={() => void send()}>{busy ? '发送中…' : '发送到 Session'}</button>
+        <div className="pc-status" role="status" aria-live="polite">{status}</div>
       </div>
     </aside>
   </div>

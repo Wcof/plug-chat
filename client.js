@@ -330,17 +330,68 @@ function createDshAdapter(ctx) {
 
 // src/client-entry.tsx
 var initialChats = PROVIDERS.map((provider) => ({ id: provider.id, url: provider.url, title: provider.name, provider: provider.id }));
-var styles = {
-  root: { display: "grid", gridTemplateColumns: "220px minmax(420px, 1fr) 320px", height: "100%", minHeight: 0, background: "var(--dsw-alias-bg-base, #101214)", color: "var(--dsw-alias-label-primary, #f4f5f6)", fontFamily: "var(--dsw-font-family, -apple-system, BlinkMacSystemFont, sans-serif)", fontSize: 13 },
-  column: { minWidth: 0, minHeight: 0, borderRight: "1px solid var(--dsw-alias-border-l3, #2d3138)", display: "flex", flexDirection: "column" },
-  header: { height: 46, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 14px", borderBottom: "1px solid var(--dsw-alias-border-l3, #2d3138)", flex: "0 0 auto" },
-  list: { overflow: "auto", padding: 8, display: "grid", gap: 4, alignContent: "start" },
-  button: { border: 0, borderRadius: 6, background: "transparent", color: "inherit", cursor: "pointer", padding: "9px 10px", textAlign: "left", font: "inherit" },
-  input: { border: "1px solid var(--dsw-alias-border-l2, #414751)", borderRadius: 6, background: "var(--dsw-alias-bg-layer-1, #1b1e23)", color: "inherit", padding: "8px 9px", font: "inherit", minWidth: 0 },
-  muted: { color: "var(--dsw-alias-label-tertiary, #9da3ad)", fontSize: 12, lineHeight: 1.45 }
-};
-function IconButton({ label, onClick, disabled }) {
-  return /* @__PURE__ */ import_react.default.createElement("button", { type: "button", "aria-label": label, title: label, disabled, onClick, style: { ...styles.button, padding: 6, opacity: disabled ? 0.45 : 1, textAlign: "center" } }, label === "\u5237\u65B0" ? "\u21BB" : "+");
+var css = `
+.pc-root{--pc-bg:var(--dsw-alias-bg-base,#101214);--pc-base:var(--dsw-alias-bg-base,#101214);--pc-layer:var(--dsw-alias-bg-layer-1,#1b1e23);--pc-layer2:var(--dsw-alias-bg-layer-2,#22262c);--pc-line:var(--dsw-alias-border-l3,#2d3138);--pc-line2:var(--dsw-alias-border-l2,#414751);--pc-ink:var(--dsw-alias-label-primary,#f4f5f6);--pc-ink2:var(--dsw-alias-label-secondary,#c2c7cf);--pc-ink3:var(--dsw-alias-label-tertiary,#9da3ad);--pc-sel:color-mix(in srgb,var(--dsw-alias-brand-primary,#285fc2) 14%,transparent);--pc-accent:var(--dsw-alias-button-primary-fill,#285fc2);--pc-accent-hover:var(--dsw-alias-button-primary-hover,#3a70d4);--pc-ok:var(--dsw-alias-state-success-primary,#71c99b);--pc-warn:var(--dsw-alias-state-warn-primary,#e0b25c);display:grid;grid-template-columns:minmax(0,1fr) 320px;height:100%;min-height:0;background:var(--pc-base);color:var(--pc-ink);font:12px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.pc-root *{box-sizing:border-box}
+.pc-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:var(--pc-bg)}
+.pc-top{height:48px;flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
+.pc-tabs{display:flex;align-items:center;gap:2px;overflow:auto;flex:1;min-width:0;scrollbar-width:none}
+.pc-tabs::-webkit-scrollbar{display:none}
+.pc-tab{height:30px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--pc-ink3);font:12px/1 inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;transition:background-color 120ms,color 120ms}
+.pc-tab:hover{color:var(--pc-ink2);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12))}
+.pc-tab.on{color:var(--pc-ink);background:var(--pc-sel);box-shadow:inset 2px 0 0 var(--pc-accent)}
+.pc-dot{width:6px;height:6px;border-radius:50%;flex:0 0 auto;background:var(--pc-ink3)}
+.pc-plus{width:28px;height:28px;flex:0 0 auto;border:1px solid var(--pc-line);border-radius:6px;background:transparent;color:var(--pc-ink3);font:16px/1 inherit;cursor:pointer}
+.pc-plus:hover{color:var(--pc-ink);border-color:var(--pc-line2)}
+.pc-add{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
+.pc-stage{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:28px}
+.pc-card{width:min(480px,100%);border:1px solid var(--pc-line);border-radius:10px;background:var(--pc-layer);padding:22px}
+.pc-eyebrow{font-size:11px;color:var(--pc-ink3)}
+.pc-h1{font-size:15px;font-weight:600;margin:6px 0 6px}
+.pc-sub{font-size:12px;color:var(--pc-ink2);line-height:1.7}
+.pc-meta{font-size:11px;color:var(--pc-ink3);line-height:1.55}
+.pc-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.pc-btn{height:32px;padding:0 12px;border-radius:6px;border:1px solid transparent;font:600 12px/1 inherit;cursor:pointer;white-space:nowrap}
+.pc-btn.primary{background:var(--pc-accent);color:var(--dsw-alias-label-on-color,#fff)}
+.pc-btn.ghost{background:transparent;border-color:var(--pc-line2);color:var(--pc-ink2)}
+.pc-btn.primary:hover:not(:disabled){background:var(--pc-accent-hover)}
+.pc-btn.ghost:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));color:var(--pc-ink)}
+.pc-btn:disabled{opacity:.45;cursor:default}
+.pc-small{height:26px;padding:0 9px;font-size:11px}
+.pc-status{font-size:11px;color:var(--pc-ink3);min-height:30px;line-height:1.55;margin-top:10px}
+.pc-browser{flex:1;min-height:0;display:flex;flex-direction:column}
+.pc-browser-top{height:38px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--pc-line);background:var(--pc-base)}
+.pc-browser-host{flex:1;min-height:0;background:#fff}
+.pc-browser-hint{padding:24px;color:#6b7280;font-size:12px}
+.pc-side{min-height:0;border-left:1px solid var(--pc-line);background:var(--pc-base);display:flex;flex-direction:column}
+.pc-side-head{height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--pc-line)}
+.pc-side-head strong{font-size:12px;font-weight:600}
+.pc-icon{width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--pc-ink3);cursor:pointer;font:13px/1 inherit}
+.pc-icon:hover{background:var(--pc-layer);color:var(--pc-ink)}
+.pc-side-body{min-height:0;overflow:auto;padding:12px;display:grid;gap:10px;align-content:start}
+.pc-group{border:1px solid var(--pc-line);border-radius:8px;background:var(--pc-layer);padding:10px 12px;display:grid;gap:8px}
+.pc-label{font-size:11px;color:var(--pc-ink3)}
+.pc-source{font-size:12px;color:var(--pc-ink)}
+.pc-select,.pc-input,.pc-area{width:100%;border:1px solid var(--pc-line2);border-radius:6px;background:var(--pc-base);color:var(--pc-ink);font:12px/1.4 inherit;padding:0 9px;height:32px}
+.pc-area{height:auto;min-height:64px;padding:8px 9px;resize:vertical}
+.pc-select:focus,.pc-input:focus,.pc-area:focus,.pc-btn:focus-visible,.pc-tab:focus-visible,.pc-plus:focus-visible,.pc-icon:focus-visible{outline:2px solid var(--pc-accent);outline-offset:2px}
+.pc-row{display:grid;gap:5px}
+.pc-check{display:flex;gap:6px;align-items:flex-start;font-size:11px;color:var(--pc-ink2);line-height:1.45}
+.pc-note{font-size:11px;color:var(--pc-warn);background:color-mix(in srgb,var(--pc-warn) 8%,transparent);border:1px solid color-mix(in srgb,var(--pc-warn) 40%,transparent);border-radius:6px;padding:8px 10px;line-height:1.55;display:grid;gap:6px}
+.pc-link{border:0;background:transparent;color:var(--pc-accent);font:11px/1.4 inherit;padding:0;cursor:pointer;text-align:left}
+.pc-wide{width:100%}
+.pc-empty{padding:16px;border:1px dashed var(--pc-line2);border-radius:8px;color:var(--pc-ink3);font-size:11px;line-height:1.6}
+@media (max-width:860px){.pc-root{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}.pc-side{max-height:46%;border-left:0;border-top:1px solid var(--pc-line)}}
+`;
+function sidebarRightOf(ctx) {
+  try {
+    return ctx.sidebarRight;
+  } catch {
+    return void 0;
+  }
+}
+function colorOf(id) {
+  return PROVIDERS.find((provider) => provider.id === id)?.color ?? "#9da3ad";
 }
 function NativeBrowser({ entry, onStatus, onSnapshot, browser }) {
   const hostRef = (0, import_react.useRef)(null);
@@ -357,7 +408,6 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }) {
         return;
       }
       try {
-        const provider = providerForUrl(entry.url);
         const reservation = await browser.acquire("plug-chat");
         lease = reservation.lease;
         if (disposed) {
@@ -399,7 +449,7 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }) {
         });
         if (disposed) return;
         await view.loadURL(entry.url);
-        onStatus(provider.name + " \u5DF2\u6253\u5F00\uFF1B\u767B\u5F55\u72B6\u6001\u7531\u5BBF\u4E3B\u6D4F\u89C8\u5668\u7BA1\u7406\u3002");
+        onStatus("\u5DF2\u5728\u5185\u5D4C\u6D4F\u89C8\u5668\u6253\u5F00\uFF1B\u767B\u5F55\u72B6\u6001\u7531\u5BBF\u4E3B\u6D4F\u89C8\u5668\u7BA1\u7406\u3002");
       } catch (error) {
         onStatus(error instanceof Error ? error.message : "\u7F51\u9875\u6253\u5F00\u5931\u8D25\u3002");
       }
@@ -413,28 +463,30 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }) {
     };
   }, [entry.id, entry.url, browser, onStatus]);
   const extract = async () => {
-    const element = frameRef.current;
-    if (!element) {
+    const view = frameRef.current;
+    if (!view) {
       onStatus("\u7F51\u9875\u5C1A\u672A\u51C6\u5907\u597D\uFF0C\u8BF7\u7A0D\u5019\u3002");
       return;
     }
     try {
-      const value = await element.executeJavaScript(buildExtractionScript(entry.provider), false);
+      const value = await view.executeJavaScript(buildExtractionScript(entry.provider), false);
       onSnapshot(normalizeExtractionResult(value));
       onStatus("\u5DF2\u8BFB\u53D6\u5F53\u524D\u7F51\u9875\u4E2D\u5DF2\u52A0\u8F7D\u7684 Chat \u6D88\u606F\u3002");
     } catch (error) {
       onStatus(error instanceof Error ? error.message : "Chat \u63D0\u53D6\u5931\u8D25\u3002");
     }
   };
-  return /* @__PURE__ */ import_react.default.createElement("div", { style: { minHeight: 0, flex: 1, display: "grid", gridTemplateRows: "42px minmax(0, 1fr)" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.header, height: 42 } }, /* @__PURE__ */ import_react.default.createElement("span", { style: styles.muted }, entry.url), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", onClick: extract, style: { ...styles.button, background: "#285fc2", padding: "6px 10px" } }, "\u8BFB\u53D6 Chat")), /* @__PURE__ */ import_react.default.createElement("div", { ref: hostRef, style: { minHeight: 0, position: "relative", background: "#fff" } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.muted, padding: 24 } }, "\u6B63\u5728\u6253\u5F00\u7F51\u9875\u2026")));
+  return /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-browser" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-browser-top" }, /* @__PURE__ */ import_react.default.createElement("span", { className: "pc-meta" }, "\u5185\u5D4C\u6A21\u5F0F \xB7 ", entry.title), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-btn ghost pc-small", onClick: extract }, "\u8BFB\u53D6 Chat")), /* @__PURE__ */ import_react.default.createElement("div", { ref: hostRef, className: "pc-browser-host" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-browser-hint" }, "\u6B63\u5728\u6253\u5F00\u7F51\u9875\u2026")));
 }
-function OfficialLauncher({ entry, onOpen, status }) {
-  return /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: 28, display: "grid", gap: 14, alignContent: "start", maxWidth: 720 } }, /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("div", { style: { fontSize: 15, fontWeight: 600 } }, "\u5728\u5BBF\u4E3B\u5B98\u65B9\u6D4F\u89C8\u5668\u4E2D\u6253\u5F00"), /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.muted, marginTop: 6 } }, entry.title, " \xB7 ", entry.url)), /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.muted, border: "1px solid var(--dsw-alias-border-l3, #2d3138)", borderRadius: 8, padding: "12px 14px", background: "var(--dsw-alias-bg-layer-1, #1b1e23)", lineHeight: 1.65 } }, "\u9875\u9762\u7531 DeepSeek Harness \u81EA\u5E26\u7684\u4FA7\u680F\u6D4F\u89C8\u5668\u52A0\u8F7D\uFF0C\u767B\u5F55\u6001\u3001Cookie\u3001\u524D\u8FDB\u540E\u9000\u90FD\u7531\u5BBF\u4E3B\u7BA1\u7406\uFF1B\u63D2\u4EF6\u4E0D\u91CD\u7ED8\u5B98\u65B9\u9875\u9762\u3002", /* @__PURE__ */ import_react.default.createElement("br", null), "\u8BE5\u6A21\u5F0F\u4E0B\u63D2\u4EF6\u4E0D\u8BFB\u53D6\u9875\u9762\u5185\u5BB9\uFF0C\u6240\u4EE5\u300C\u53D1\u9001\u5230 Session\u300D\u6682\u4E0D\u53EF\u7528\uFF1B\u9700\u8981\u590D\u5236\u4E0A\u4E0B\u6587\u65F6\u5207\u6362\u5230\u300C\u5185\u5D4C\uFF08\u5B9E\u9A8C\uFF09\u300D\u3002"), /* @__PURE__ */ import_react.default.createElement("div", null, /* @__PURE__ */ import_react.default.createElement("button", { type: "button", onClick: onOpen, style: { ...styles.button, background: "#285fc2", padding: "8px 14px", fontWeight: 600 } }, "\u5728\u5B98\u65B9\u6D4F\u89C8\u5668\u4E2D\u6253\u5F00")), /* @__PURE__ */ import_react.default.createElement("div", { role: "status", "aria-live": "polite", style: styles.muted }, status));
+function OfficialLauncher({ entry, onOpen, onEmbed, status }) {
+  return /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-stage" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-card" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-eyebrow" }, "\u5F53\u524D Chat"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-h1" }, entry.title), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-sub" }, "\u5728 DeepSeek Harness \u81EA\u5E26\u7684\u53F3\u4FA7\u6D4F\u89C8\u5668\u4E2D\u6253\u5F00\u3002\u767B\u5F55\u6001\u3001Cookie\u3001\u524D\u8FDB\u540E\u9000\u90FD\u7531\u5BBF\u4E3B\u7BA1\u7406\uFF0C\u63D2\u4EF6\u4E0D\u91CD\u7ED8\u5B98\u65B9\u9875\u9762\u3002"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-meta", style: { marginTop: 10 } }, "\u5B98\u65B9\u6D4F\u89C8\u5668\u6A21\u5F0F\u4E0D\u8BFB\u53D6\u9875\u9762\u5185\u5BB9\uFF0C\u56E0\u6B64\u300C\u53D1\u9001\u5230 Session\u300D\u6682\u4E0D\u53EF\u7528\u3002"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-actions" }, /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-btn primary", onClick: onOpen }, "\u6253\u5F00\u5B98\u65B9\u6D4F\u89C8\u5668"), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-btn ghost", onClick: onEmbed }, "\u5207\u6362\u5230\u5185\u5D4C\u6A21\u5F0F")), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-status", role: "status", "aria-live": "polite" }, status)));
 }
 function ChatPanel({ ctx }) {
   const [chats, setChats] = (0, import_react.useState)(initialChats);
   const [selected, setSelected] = (0, import_react.useState)("deepseek");
-  const [browserMode, setBrowserMode] = (0, import_react.useState)(ctx.sidebarRight ? "official" : "embedded");
+  const sidebarRight = sidebarRightOf(ctx);
+  const [browserMode, setBrowserMode] = (0, import_react.useState)(sidebarRight ? "official" : "embedded");
+  const [adding, setAdding] = (0, import_react.useState)(false);
   const [urlDraft, setUrlDraft] = (0, import_react.useState)("");
   const [sessions, setSessions] = (0, import_react.useState)([]);
   const [targetId, setTargetId] = (0, import_react.useState)("");
@@ -469,12 +521,13 @@ function ChatPanel({ ctx }) {
       setChats((items) => [...items, { id, url, title: provider.name, provider: provider.id }]);
       setSelected(id);
       setUrlDraft("");
+      setAdding(false);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "\u8BF7\u8F93\u5165\u652F\u6301\u7684 Chat \u5730\u5740\u3002");
     }
   };
   const openOfficial = (chat) => {
-    const right = ctx.sidebarRight;
+    const right = sidebarRightOf(ctx);
     if (!right) {
       setStatus("\u5F53\u524D\u5BBF\u4E3B\u6CA1\u6709\u5B98\u65B9\u6D4F\u89C8\u5668\u670D\u52A1\uFF08sidebarRight \u672A\u63D0\u4F9B\uFF09\u3002");
       return;
@@ -522,13 +575,16 @@ function ChatPanel({ ctx }) {
       setBusy(false);
     }
   };
-  if (!entry) return /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: 24 } }, "\u8FD8\u6CA1\u6709 Chat\u3002\u8BF7\u6DFB\u52A0\u4E00\u4E2A\u652F\u6301\u7684\u7F51\u9875\u5730\u5740\u3002");
-  return /* @__PURE__ */ import_react.default.createElement("div", { style: styles.root }, /* @__PURE__ */ import_react.default.createElement("aside", { style: styles.column }, /* @__PURE__ */ import_react.default.createElement("div", { style: styles.header }, /* @__PURE__ */ import_react.default.createElement("strong", null, "Chat"), /* @__PURE__ */ import_react.default.createElement(IconButton, { label: "\u5237\u65B0", onClick: () => void reloadSessions() })), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: 10, display: "flex", gap: 6 } }, /* @__PURE__ */ import_react.default.createElement("input", { "aria-label": "\u6DFB\u52A0 Chat \u7F51\u9875\u5730\u5740", value: urlDraft, onChange: (event) => setUrlDraft(event.target.value), onKeyDown: (event) => {
-    if (event.key === "Enter") addChat();
-  }, placeholder: "\u7C98\u8D34 Chat \u7F51\u9875\u5730\u5740", style: { ...styles.input, flex: 1 } }), /* @__PURE__ */ import_react.default.createElement(IconButton, { label: "\u6DFB\u52A0", onClick: addChat })), /* @__PURE__ */ import_react.default.createElement("div", { style: styles.list }, chats.map((item) => /* @__PURE__ */ import_react.default.createElement("button", { key: item.id, type: "button", onClick: () => {
+  if (!entry) return /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-root" }, /* @__PURE__ */ import_react.default.createElement("style", null, css), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-stage" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-empty" }, "\u8FD8\u6CA1\u6709 Chat\u3002\u70B9\u53F3\u4E0A\u89D2 + \u6DFB\u52A0\u4E00\u4E2A\u652F\u6301\u7684\u7F51\u9875\u5730\u5740\u3002")));
+  return /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-root" }, /* @__PURE__ */ import_react.default.createElement("style", null, css), /* @__PURE__ */ import_react.default.createElement("main", { className: "pc-main" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-top" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-tabs" }, chats.map((item) => /* @__PURE__ */ import_react.default.createElement("button", { key: item.id, type: "button", className: "pc-tab" + (item.id === selected ? " on" : ""), title: item.title, onClick: () => {
     setSelected(item.id);
     if (browserMode === "official") openOfficial(item);
-  }, style: { ...styles.button, background: item.id === selected ? "var(--dsw-alias-interactive-bg-selected, #293444)" : "transparent" } }, /* @__PURE__ */ import_react.default.createElement("span", { style: { display: "block", fontWeight: 600 } }, item.title), /* @__PURE__ */ import_react.default.createElement("span", { style: styles.muted }, item.url), item.snapshot && /* @__PURE__ */ import_react.default.createElement("span", { style: { ...styles.muted, display: "block", color: "#71c99b" } }, item.snapshot.messages.length, " \u6761\u5DF2\u8BFB\u53D6"))))), /* @__PURE__ */ import_react.default.createElement("main", { style: styles.column }, /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.header, height: 42, gap: 8 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "flex", gap: 4 } }, /* @__PURE__ */ import_react.default.createElement("button", { type: "button", "aria-pressed": browserMode === "official", onClick: () => setBrowserMode("official"), style: { ...styles.button, padding: "5px 9px", background: browserMode === "official" ? "var(--dsw-alias-interactive-bg-selected, #293444)" : "transparent" } }, "\u5B98\u65B9\u6D4F\u89C8\u5668"), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", "aria-pressed": browserMode === "embedded", onClick: () => setBrowserMode("embedded"), style: { ...styles.button, padding: "5px 9px", background: browserMode === "embedded" ? "var(--dsw-alias-interactive-bg-selected, #293444)" : "transparent" } }, "\u5185\u5D4C\uFF08\u5B9E\u9A8C\uFF09")), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", onClick: () => openOfficial(entry), style: { ...styles.button, padding: "5px 9px" } }, "\u5728\u5B98\u65B9\u6D4F\u89C8\u5668\u6253\u5F00")), browserMode === "official" ? /* @__PURE__ */ import_react.default.createElement(OfficialLauncher, { entry, onOpen: () => openOfficial(entry), status }) : /* @__PURE__ */ import_react.default.createElement(NativeBrowser, { entry, browser: browser?.protocolVersion === 1 ? browser.browser : void 0, onStatus: setStatus, onSnapshot })), /* @__PURE__ */ import_react.default.createElement("aside", { style: { ...styles.column, borderRight: 0 } }, /* @__PURE__ */ import_react.default.createElement("div", { style: styles.header }, /* @__PURE__ */ import_react.default.createElement("strong", null, "\u53D1\u9001\u5230 Session"), /* @__PURE__ */ import_react.default.createElement(IconButton, { label: "\u5237\u65B0", onClick: () => void reloadSessions() })), /* @__PURE__ */ import_react.default.createElement("div", { style: { padding: 14, overflow: "auto", display: "grid", gap: 12 } }, browserMode === "official" && /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.muted, padding: "9px 10px", border: "1px solid #6b5527", borderRadius: 6, color: "#e0b25c", background: "rgba(224,178,92,.06)" } }, "\u5B98\u65B9\u6D4F\u89C8\u5668\u6A21\u5F0F\u4E0B\u63D2\u4EF6\u65E0\u6CD5\u8BFB\u53D6\u9875\u9762\u5185\u5BB9\uFF1B\u9700\u8981\u53D1\u9001\u4E0A\u4E0B\u6587\u65F6\uFF0C\u5207\u6362\u5230\u300C\u5185\u5D4C\uFF08\u5B9E\u9A8C\uFF09\u300D\u5E76\u91CD\u65B0\u8BFB\u53D6\u3002"), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "grid", gap: 5 } }, "\u76EE\u6807 Session", /* @__PURE__ */ import_react.default.createElement("select", { "aria-label": "\u76EE\u6807 Session", value: targetId, onChange: (event) => setTargetId(event.target.value), style: styles.input }, /* @__PURE__ */ import_react.default.createElement("option", { value: "" }, "\u9009\u62E9 Session"), sessions.map((item) => /* @__PURE__ */ import_react.default.createElement("option", { key: item.id, value: item.id }, item.title)))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "grid", gap: 5 } }, "\u53D1\u9001\u8303\u56F4", /* @__PURE__ */ import_react.default.createElement("select", { "aria-label": "\u53D1\u9001\u8303\u56F4", value: mode, onChange: (event) => setMode(event.target.value), style: styles.input }, /* @__PURE__ */ import_react.default.createElement("option", { value: "incremental" }, "\u589E\u91CF\uFF08\u63A8\u8350\uFF09"), /* @__PURE__ */ import_react.default.createElement("option", { value: "all" }, "\u5168\u90E8\u6D88\u606F"), /* @__PURE__ */ import_react.default.createElement("option", { value: "recent" }, "\u6700\u8FD1\u6D88\u606F"), /* @__PURE__ */ import_react.default.createElement("option", { value: "selected" }, "\u6307\u5B9A\u6D88\u606F"))), mode === "recent" && /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "grid", gap: 5 } }, "\u6700\u8FD1\u6761\u6570", /* @__PURE__ */ import_react.default.createElement("input", { type: "number", min: 1, max: 100, value: recentCount, onChange: (event) => setRecentCount(Number(event.target.value)), style: styles.input })), mode === "selected" && snapshot && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gap: 4, maxHeight: 190, overflow: "auto" } }, snapshot.messages.map((message) => /* @__PURE__ */ import_react.default.createElement("label", { key: message.id, style: { display: "flex", gap: 6, alignItems: "start", ...styles.muted } }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: selectedIds.includes(message.id), onChange: (event) => setSelectedIds((ids) => event.target.checked ? [...ids, message.id] : ids.filter((id) => id !== message.id)) }), message.role === "user" ? "\u7528\u6237" : "\u52A9\u624B", "\uFF1A", message.text.slice(0, 70)))), /* @__PURE__ */ import_react.default.createElement("label", { style: { display: "grid", gap: 5 } }, "\u7EE7\u7EED\u4EFB\u52A1", /* @__PURE__ */ import_react.default.createElement("textarea", { "aria-label": "\u7EE7\u7EED\u4EFB\u52A1", rows: 4, maxLength: 4e3, value: instruction, onChange: (event) => setInstruction(event.target.value), placeholder: "\u4F8B\u5982\uFF1A\u63D0\u70BC\u8FD9\u6BB5 Chat \u7684\u51B3\u7B56\uFF0C\u5E76\u7EE7\u7EED\u5B8C\u6210\u5B9E\u73B0\u3002", style: { ...styles.input, resize: "vertical" } })), /* @__PURE__ */ import_react.default.createElement("div", { style: { ...styles.muted, padding: "9px 10px", background: "var(--dsw-alias-bg-layer-1, #1b1e23)", borderRadius: 6 } }, snapshot ? "\u6765\u6E90\uFF1A" + snapshot.title + " \xB7 " + snapshot.messages.length + " \u6761\u6D88\u606F" : "\u5C1A\u672A\u8BFB\u53D6 Chat", /* @__PURE__ */ import_react.default.createElement("br", null), "Chat \u5185\u5BB9\u4F1A\u4F5C\u4E3A\u5916\u90E8\u8D44\u6599\u53D1\u9001\uFF1B\u4E0D\u4F1A\u4FDD\u5B58\u7F51\u9875\u51ED\u8BC1\u3002"), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", disabled: busy || !snapshot || !targetId, onClick: () => void send(), style: { ...styles.button, background: busy ? "#46505e" : "#285fc2", textAlign: "center", fontWeight: 600 } }, busy ? "\u53D1\u9001\u4E2D\u2026" : "\u53D1\u9001\u5230 Session"), /* @__PURE__ */ import_react.default.createElement("div", { role: "status", "aria-live": "polite", style: { ...styles.muted, minHeight: 45 } }, status))));
+  } }, /* @__PURE__ */ import_react.default.createElement("span", { className: "pc-dot", style: { background: colorOf(item.provider) } }), item.title))), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-plus", "aria-label": "\u6DFB\u52A0 Chat", title: "\u6DFB\u52A0 Chat", onClick: () => setAdding((value) => !value) }, "+")), adding && /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-add" }, /* @__PURE__ */ import_react.default.createElement("input", { className: "pc-input", "aria-label": "\u6DFB\u52A0 Chat \u7F51\u9875\u5730\u5740", value: urlDraft, onChange: (event) => setUrlDraft(event.target.value), onKeyDown: (event) => {
+    if (event.key === "Enter") addChat();
+  }, placeholder: "\u7C98\u8D34 Chat \u7F51\u9875\u5730\u5740" }), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-btn primary pc-small", onClick: addChat }, "\u6DFB\u52A0"), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-btn ghost pc-small", onClick: () => {
+    setAdding(false);
+    setUrlDraft("");
+  } }, "\u53D6\u6D88")), browserMode === "official" ? /* @__PURE__ */ import_react.default.createElement(OfficialLauncher, { entry, onOpen: () => openOfficial(entry), onEmbed: () => setBrowserMode("embedded"), status }) : /* @__PURE__ */ import_react.default.createElement(NativeBrowser, { entry, browser: browser?.protocolVersion === 1 ? browser.browser : void 0, onStatus: setStatus, onSnapshot })), /* @__PURE__ */ import_react.default.createElement("aside", { className: "pc-side" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-side-head" }, /* @__PURE__ */ import_react.default.createElement("strong", null, "\u53D1\u9001\u5230 Session"), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-icon", "aria-label": "\u5237\u65B0 Session", title: "\u5237\u65B0 Session", onClick: () => void reloadSessions() }, "\u21BB")), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-side-body" }, browserMode === "official" ? /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-note" }, /* @__PURE__ */ import_react.default.createElement("div", null, "\u5B98\u65B9\u6D4F\u89C8\u5668\u6A21\u5F0F\u4E0D\u8BFB\u53D6\u9875\u9762\u5185\u5BB9\u3002\u9700\u8981\u53D1\u9001\u4E0A\u4E0B\u6587\u65F6\uFF0C\u5207\u6362\u5230\u5185\u5D4C\u6A21\u5F0F\u5E76\u91CD\u65B0\u8BFB\u53D6\u3002"), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-link", onClick: () => setBrowserMode("embedded") }, "\u5207\u6362\u5230\u5185\u5D4C\u6A21\u5F0F")) : /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-link", onClick: () => setBrowserMode("official") }, "\u5207\u6362\u5230\u5B98\u65B9\u6D4F\u89C8\u5668"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-group" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-label" }, "\u6765\u6E90"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-source" }, snapshot ? entry.title : "\u5C1A\u672A\u8BFB\u53D6 Chat"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-meta" }, snapshot ? snapshot.messages.length + " \u6761\u6D88\u606F" : "\u5185\u5D4C\u6A21\u5F0F\u4E0B\u70B9\u300C\u8BFB\u53D6 Chat\u300D")), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-group" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-label" }, "\u76EE\u6807 Session"), /* @__PURE__ */ import_react.default.createElement("select", { className: "pc-select", "aria-label": "\u76EE\u6807 Session", value: targetId, onChange: (event) => setTargetId(event.target.value) }, /* @__PURE__ */ import_react.default.createElement("option", { value: "" }, "\u9009\u62E9 Session"), sessions.map((item) => /* @__PURE__ */ import_react.default.createElement("option", { key: item.id, value: item.id }, item.title)))), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-group" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-label" }, "\u53D1\u9001\u8303\u56F4"), /* @__PURE__ */ import_react.default.createElement("select", { className: "pc-select", "aria-label": "\u53D1\u9001\u8303\u56F4", value: mode, onChange: (event) => setMode(event.target.value) }, /* @__PURE__ */ import_react.default.createElement("option", { value: "incremental" }, "\u589E\u91CF\uFF08\u63A8\u8350\uFF09"), /* @__PURE__ */ import_react.default.createElement("option", { value: "all" }, "\u5168\u90E8\u6D88\u606F"), /* @__PURE__ */ import_react.default.createElement("option", { value: "recent" }, "\u6700\u8FD1\u6D88\u606F"), /* @__PURE__ */ import_react.default.createElement("option", { value: "selected" }, "\u6307\u5B9A\u6D88\u606F")), mode === "recent" && /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-row" }, /* @__PURE__ */ import_react.default.createElement("span", { className: "pc-label" }, "\u6700\u8FD1\u6761\u6570"), /* @__PURE__ */ import_react.default.createElement("input", { className: "pc-input", type: "number", min: 1, max: 100, value: recentCount, onChange: (event) => setRecentCount(Number(event.target.value)) })), mode === "selected" && snapshot && /* @__PURE__ */ import_react.default.createElement("div", { style: { display: "grid", gap: 4, maxHeight: 160, overflow: "auto" } }, snapshot.messages.map((message) => /* @__PURE__ */ import_react.default.createElement("label", { key: message.id, className: "pc-check" }, /* @__PURE__ */ import_react.default.createElement("input", { type: "checkbox", checked: selectedIds.includes(message.id), onChange: (event) => setSelectedIds((ids) => event.target.checked ? [...ids, message.id] : ids.filter((id) => id !== message.id)) }), message.role === "user" ? "\u7528\u6237" : "\u52A9\u624B", "\uFF1A", message.text.slice(0, 60))))), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-group" }, /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-label" }, "\u7EE7\u7EED\u4EFB\u52A1"), /* @__PURE__ */ import_react.default.createElement("textarea", { className: "pc-area", "aria-label": "\u7EE7\u7EED\u4EFB\u52A1", rows: 4, maxLength: 4e3, value: instruction, onChange: (event) => setInstruction(event.target.value), placeholder: "\u4F8B\u5982\uFF1A\u63D0\u70BC\u8FD9\u6BB5 Chat \u7684\u51B3\u7B56\uFF0C\u5E76\u7EE7\u7EED\u5B8C\u6210\u5B9E\u73B0\u3002" })), /* @__PURE__ */ import_react.default.createElement("button", { type: "button", className: "pc-btn primary pc-wide", disabled: busy || !snapshot || !targetId, onClick: () => void send() }, busy ? "\u53D1\u9001\u4E2D\u2026" : "\u53D1\u9001\u5230 Session"), /* @__PURE__ */ import_react.default.createElement("div", { className: "pc-status", role: "status", "aria-live": "polite" }, status))));
 }
 var inject = ["sessions", "slots", "locale"];
 function apply(ctx) {
