@@ -14,3 +14,4 @@ playwright-report/
 .codex/
 .claude/
 dist-preview/
+.workbuddy/

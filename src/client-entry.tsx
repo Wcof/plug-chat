@@ -148,15 +148,24 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
   </div>
 }
 
+// DSH 加载器在加载 client 模块时读取顶层 inject 声明，把对应服务挂到 apply(ctx) 的 ctx 上。
+// 不能改用 ctx.inject() 手动请求：client ctx 不保证提供该方法，静默失败会让侧栏与面板都不注册。
+export const inject = ['sessions', 'slots', 'locale'] as const
+
+type ClientSlots = {
+  inject(name: string, register: () => unknown): void
+  register(meta: Record<string, unknown>, component: React.ComponentType): unknown
+}
+
 export function apply(ctx: DshContext): void {
-  const ReactRuntime = React
-  ctx.inject?.(['sessions', 'locale'], (scope: DshContext) => {
-    const Panel = () => <ChatPanel ctx={scope} />
-    const slots = scope.slots
-    slots?.inject('sidebar.panellist', () => slots.register({ name: 'sidebar.panellist', id: 'plug-chat', order: 25, label: () => 'Chat' }, () => <span aria-hidden="true">◌</span>))
-    slots?.inject('main', () => slots.register({ name: 'main', key: 'plug-chat' }, Panel))
-  })
-  void ReactRuntime
+  const slots = ctx.slots as ClientSlots | undefined
+  if (!slots) throw new Error('Plug Chat：宿主未提供 slots 服务，无法注册 Chat 面板。')
+  const Panel = () => <ChatPanel ctx={ctx} />
+  slots.inject('sidebar.panellist', () => slots.register(
+    { name: 'sidebar.panellist', id: 'plug-chat', order: 25, label: () => 'Chat', locale: 'plug-chat' },
+    () => <span aria-hidden="true">◌</span>,
+  ))
+  slots.inject('main', () => slots.register({ name: 'main', key: 'plug-chat', locale: 'plug-chat' }, Panel))
 }
 
 export function mountStandalone(element: HTMLElement, ctx: DshContext): void { createRoot(element).render(<ChatPanel ctx={ctx} />) }

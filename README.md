@@ -11,6 +11,8 @@ Plug Chat 是面向 DeepSeek Harness 的 APP 内 Chat 工作台插件。网页�
 npm install
 npm run check
 
+安装或升级后需重启 DeepSeek Harness：DSH 从组合包读取 `client.js`，侧栏入口与主面板在 Client 模块加载时注册。若更新后仍看不到菜单，先确认已安装**最新版本**并重启宿主。
+
 首版使用 DSH 原生 Client 模块表，不重复打包 React。zcode 的 DSH 版本尚未实测，不能直接宣称兼容。
 
 ## 数据边界

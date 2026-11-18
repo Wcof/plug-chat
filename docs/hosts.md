@@ -26,4 +26,6 @@
 
 插件包把 `react`、`react-dom`、`react-dom/client` 声明为外部模块（`scripts/build.mjs` 的 `external`），由 DSH 的 `window.__ModuleLoader__` 在加载 `client.js` 时通过 `require` 注入；宿主模块表必须提供这三个模块，否则面板无法挂载。插件包本身不需要也不携带 `node_modules`，`node_modules` 仅用于本地开发与构建。
 
+Client 模块注册契约：`client.js` 的 factory 返回值必须有顶层 `inject` 数组（本项目为 `['sessions', 'slots', 'locale']`），DSH 加载器据此把服务挂到 `apply(ctx)` 的 ctx 上；随后 `apply` 用 `ctx.slots.inject('sidebar.panellist'|'main', ...)` 注册入口，两处的 `id` 与 `key` 必须同为 `plug-chat`。**不能**改用 `ctx.inject(...)` 手动请求服务——client ctx 不保证提供该方法，配合可选链会静默跳过注册，表现为侧栏无菜单、主区无面板。`npm run check` 的 `validate:bundle` 已加入该契约校验。安装/升级后需重启宿主才会重新加载 client 模块。
+
 网页登录和站点会话由宿主浏览器分区管理；插件不保存凭证。虚拟化历史记录可能未加载，界面会显示“仅当前已加载消息”。Chat 内容被标记为外部资料，不能覆盖 Session 的系统规则。发送操作可能触发宿主模型调用和费用，由用户点击发送明确触发。
