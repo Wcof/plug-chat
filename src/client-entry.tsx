@@ -158,6 +158,13 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
     } catch (error) { setStatus(error instanceof Error ? error.message : '官方浏览器打开失败。') }
   }
   const onSnapshot = (next: ChatSnapshot) => { setChats(items => items.map(item => item.id === selected ? { ...item, title: next.title || item.title, snapshot: next, status: undefined } : item)); setSelectedIds(next.messages.map(message => message.id)) }
+  const openedOnMount = useRef(false)
+  useEffect(() => {
+    if (openedOnMount.current) return
+    openedOnMount.current = true
+    if (browserMode !== 'official' || !entry) return
+    openOfficial(entry)
+  }, [])
   const send = async () => {
     if (!snapshot || !targetId) { setStatus('请先读取 Chat，并选择目标 Session。'); return }
     const target = sessions.find(item => item.id === targetId)

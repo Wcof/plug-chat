@@ -490,6 +490,13 @@ function ChatPanel({ ctx }) {
     setChats((items) => items.map((item) => item.id === selected ? { ...item, title: next.title || item.title, snapshot: next, status: void 0 } : item));
     setSelectedIds(next.messages.map((message) => message.id));
   };
+  const openedOnMount = (0, import_react.useRef)(false);
+  (0, import_react.useEffect)(() => {
+    if (openedOnMount.current) return;
+    openedOnMount.current = true;
+    if (browserMode !== "official" || !entry) return;
+    openOfficial(entry);
+  }, []);
   const send = async () => {
     if (!snapshot || !targetId) {
       setStatus("\u8BF7\u5148\u8BFB\u53D6 Chat\uFF0C\u5E76\u9009\u62E9\u76EE\u6807 Session\u3002");
