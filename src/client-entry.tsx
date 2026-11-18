@@ -78,9 +78,27 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }: { entry: ChatEn
   </div>
 }
 
+function OfficialLauncher({ entry, onOpen, status }: { entry: ChatEntry; onOpen: () => void; status: string }) {
+  return <div style={{ padding: 28, display: 'grid', gap: 14, alignContent: 'start', maxWidth: 720 }}>
+    <div>
+      <div style={{ fontSize: 15, fontWeight: 600 }}>在宿主官方浏览器中打开</div>
+      <div style={{ ...styles.muted, marginTop: 6 }}>{entry.title} · {entry.url}</div>
+    </div>
+    <div style={{ ...styles.muted, border: '1px solid var(--dsw-alias-border-l3, #2d3138)', borderRadius: 8, padding: '12px 14px', background: 'var(--dsw-alias-bg-layer-1, #1b1e23)', lineHeight: 1.65 }}>
+      页面由 DeepSeek Harness 自带的侧栏浏览器加载，登录态、Cookie、前进后退都由宿主管理；插件不重绘官方页面。
+      <br />该模式下插件不读取页面内容，所以「发送到 Session」暂不可用；需要复制上下文时切换到「内嵌（实验）」。
+    </div>
+    <div>
+      <button type="button" onClick={onOpen} style={{ ...styles.button, background: '#285fc2', padding: '8px 14px', fontWeight: 600 }}>在官方浏览器中打开</button>
+    </div>
+    <div role="status" aria-live="polite" style={styles.muted}>{status}</div>
+  </div>
+}
+
 function ChatPanel({ ctx }: { ctx: DshContext }) {
   const [chats, setChats] = useState<ChatEntry[]>(initialChats)
   const [selected, setSelected] = useState('deepseek')
+  const [browserMode, setBrowserMode] = useState<'official' | 'embedded'>('official')
   const [urlDraft, setUrlDraft] = useState('')
   const [sessions, setSessions] = useState<SessionTarget[]>([])
   const [targetId, setTargetId] = useState('')
@@ -88,7 +106,7 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
   const [recentCount, setRecentCount] = useState(10)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [instruction, setInstruction] = useState('')
-  const [status, setStatus] = useState('选择一个 Chat，然后在网页中登录并读取消息。')
+  const [status, setStatus] = useState('选择一个 Chat，在宿主官方浏览器中打开；登录态由宿主管理。')
   const [busy, setBusy] = useState(false)
   const [, redraw] = useState(0)
   const ledger = useMemo(() => new TransferLedger(), [])
@@ -108,6 +126,14 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
       setChats(items => [...items, { id, url, title: provider.name, provider: provider.id }])
       setSelected(id); setUrlDraft('')
     } catch (error) { setStatus(error instanceof Error ? error.message : '请输入支持的 Chat 地址。') }
+  }
+  const openOfficial = (chat: ChatEntry) => {
+    const right = ctx.sidebarRight
+    if (!right) { setStatus('当前宿主没有官方浏览器服务（sidebarRight 未提供）。'); return }
+    try {
+      right.openTab('browser', { params: { url: chat.url } })
+      setStatus('已在右侧官方浏览器打开「' + chat.title + '」；登录态由宿主管理。')
+    } catch (error) { setStatus(error instanceof Error ? error.message : '官方浏览器打开失败。') }
   }
   const onSnapshot = (next: ChatSnapshot) => { setChats(items => items.map(item => item.id === selected ? { ...item, title: next.title || item.title, snapshot: next, status: undefined } : item)); setSelectedIds(next.messages.map(message => message.id)) }
   const send = async () => {
@@ -129,12 +155,24 @@ function ChatPanel({ ctx }: { ctx: DshContext }) {
     <aside style={styles.column}>
       <div style={styles.header}><strong>Chat</strong><IconButton label="刷新" onClick={() => void reloadSessions()} /></div>
       <div style={{ padding: 10, display: 'flex', gap: 6 }}><input aria-label="添加 Chat 网页地址" value={urlDraft} onChange={event => setUrlDraft(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') addChat() }} placeholder="粘贴 Chat 网页地址" style={{ ...styles.input, flex: 1 }} /><IconButton label="添加" onClick={addChat} /></div>
-      <div style={styles.list}>{chats.map(item => <button key={item.id} type="button" onClick={() => setSelected(item.id)} style={{ ...styles.button, background: item.id === selected ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}><span style={{ display: 'block', fontWeight: 600 }}>{item.title}</span><span style={styles.muted}>{item.url}</span>{item.snapshot && <span style={{ ...styles.muted, display: 'block', color: '#71c99b' }}>{item.snapshot.messages.length} 条已读取</span>}</button>)}</div>
+      <div style={styles.list}>{chats.map(item => <button key={item.id} type="button" onClick={() => { setSelected(item.id); if (browserMode === 'official') openOfficial(item) }} style={{ ...styles.button, background: item.id === selected ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}><span style={{ display: 'block', fontWeight: 600 }}>{item.title}</span><span style={styles.muted}>{item.url}</span>{item.snapshot && <span style={{ ...styles.muted, display: 'block', color: '#71c99b' }}>{item.snapshot.messages.length} 条已读取</span>}</button>)}</div>
     </aside>
-    <main style={styles.column}><NativeBrowser entry={entry} browser={browser?.protocolVersion === 1 ? browser.browser : undefined} onStatus={setStatus} onSnapshot={onSnapshot} /></main>
+    <main style={styles.column}>
+      <div style={{ ...styles.header, height: 42, gap: 8 }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button type="button" aria-pressed={browserMode === 'official'} onClick={() => setBrowserMode('official')} style={{ ...styles.button, padding: '5px 9px', background: browserMode === 'official' ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}>官方浏览器</button>
+          <button type="button" aria-pressed={browserMode === 'embedded'} onClick={() => setBrowserMode('embedded')} style={{ ...styles.button, padding: '5px 9px', background: browserMode === 'embedded' ? 'var(--dsw-alias-interactive-bg-selected, #293444)' : 'transparent' }}>内嵌（实验）</button>
+        </div>
+        <button type="button" onClick={() => openOfficial(entry)} style={{ ...styles.button, padding: '5px 9px' }}>在官方浏览器打开</button>
+      </div>
+      {browserMode === 'official'
+        ? <OfficialLauncher entry={entry} onOpen={() => openOfficial(entry)} status={status} />
+        : <NativeBrowser entry={entry} browser={browser?.protocolVersion === 1 ? browser.browser : undefined} onStatus={setStatus} onSnapshot={onSnapshot} />}
+    </main>
     <aside style={{ ...styles.column, borderRight: 0 }}>
       <div style={styles.header}><strong>发送到 Session</strong><IconButton label="刷新" onClick={() => void reloadSessions()} /></div>
       <div style={{ padding: 14, overflow: 'auto', display: 'grid', gap: 12 }}>
+        {browserMode === 'official' && <div style={{ ...styles.muted, padding: '9px 10px', border: '1px solid #6b5527', borderRadius: 6, color: '#e0b25c', background: 'rgba(224,178,92,.06)' }}>官方浏览器模式下插件无法读取页面内容；需要发送上下文时，切换到「内嵌（实验）」并重新读取。</div>}
         <label style={{ display: 'grid', gap: 5 }}>目标 Session<select aria-label="目标 Session" value={targetId} onChange={event => setTargetId(event.target.value)} style={styles.input}><option value="">选择 Session</option>{sessions.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</select></label>
         <label style={{ display: 'grid', gap: 5 }}>发送范围<select aria-label="发送范围" value={mode} onChange={event => setMode(event.target.value as TransferMode)} style={styles.input}><option value="incremental">增量（推荐）</option><option value="all">全部消息</option><option value="recent">最近消息</option><option value="selected">指定消息</option></select></label>
         {mode === 'recent' && <label style={{ display: 'grid', gap: 5 }}>最近条数<input type="number" min={1} max={100} value={recentCount} onChange={event => setRecentCount(Number(event.target.value))} style={styles.input} /></label>}

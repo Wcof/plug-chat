@@ -10,9 +10,15 @@ export interface DshSessions {
   refresh(): Promise<void>
   using<T>(id: string, options: { source: 'gateway'; signal?: AbortSignal }, operation: (reference: { binding: { session: DshSessionFace } }) => T | Promise<T>): Promise<T>
 }
+export interface DshSidebarRight {
+  /** Open one registered Sidebar Tab type; the official `browser` type takes `{ url }`. */
+  openTab(kind: string, options?: { params?: { url?: string } }): void
+}
+
 export interface DshContext {
   sessions?: DshSessions
   workspaces?: { list: unknown }
+  sidebarRight?: DshSidebarRight
   inject?: (names: string[], callback: (scope: DshContext) => void) => void
   slots?: { inject: (name: string, callback: () => unknown) => void; register: (...args: unknown[]) => unknown }
 }
