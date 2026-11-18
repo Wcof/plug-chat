@@ -364,14 +364,41 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }) {
           await browser.release(lease);
           return;
         }
-        element = document.createElement("webview");
-        element.setAttribute("partition", reservation.partition);
-        element.setAttribute("name", reservation.lease);
-        element.setAttribute("allowpopups", "");
-        element.style.cssText = "width:100%;height:100%;border:0;display:flex;min-height:0;";
-        host.replaceChildren(element);
-        frameRef.current = element;
-        await element.loadURL(entry.url);
+        const view = document.createElement("webview");
+        element = view;
+        view.setAttribute("partition", reservation.partition);
+        view.setAttribute("name", reservation.lease);
+        view.setAttribute("allowpopups", "");
+        view.setAttribute("src", "about:blank#" + reservation.lease);
+        view.style.cssText = "width:100%;height:100%;border:0;display:flex;min-height:0;";
+        host.replaceChildren(view);
+        frameRef.current = view;
+        await new Promise((resolve, reject) => {
+          let timer = 0;
+          const cleanup = () => {
+            view.removeEventListener("dom-ready", onReady);
+            view.removeEventListener("did-fail-load", onFail);
+            if (timer) window.clearTimeout(timer);
+          };
+          const onReady = () => {
+            cleanup();
+            resolve();
+          };
+          const onFail = (event) => {
+            const detail = event;
+            if (detail.errorCode === -3) return;
+            cleanup();
+            reject(new Error(detail.errorDescription || "\u5B98\u65B9\u9875\u9762\u52A0\u8F7D\u5931\u8D25\u3002"));
+          };
+          view.addEventListener("dom-ready", onReady, { once: true });
+          view.addEventListener("did-fail-load", onFail);
+          timer = window.setTimeout(() => {
+            cleanup();
+            reject(new Error("\u5B98\u65B9\u9875\u9762\u52A0\u8F7D\u8D85\u65F6\u3002"));
+          }, 15e3);
+        });
+        if (disposed) return;
+        await view.loadURL(entry.url);
         onStatus(provider.name + " \u5DF2\u6253\u5F00\uFF1B\u767B\u5F55\u72B6\u6001\u7531\u5BBF\u4E3B\u6D4F\u89C8\u5668\u7BA1\u7406\u3002");
       } catch (error) {
         onStatus(error instanceof Error ? error.message : "\u7F51\u9875\u6253\u5F00\u5931\u8D25\u3002");
@@ -407,7 +434,7 @@ function OfficialLauncher({ entry, onOpen, status }) {
 function ChatPanel({ ctx }) {
   const [chats, setChats] = (0, import_react.useState)(initialChats);
   const [selected, setSelected] = (0, import_react.useState)("deepseek");
-  const [browserMode, setBrowserMode] = (0, import_react.useState)("official");
+  const [browserMode, setBrowserMode] = (0, import_react.useState)(ctx.sidebarRight ? "official" : "embedded");
   const [urlDraft, setUrlDraft] = (0, import_react.useState)("");
   const [sessions, setSessions] = (0, import_react.useState)([]);
   const [targetId, setTargetId] = (0, import_react.useState)("");

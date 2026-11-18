@@ -48,14 +48,36 @@ function NativeBrowser({ entry, onStatus, onSnapshot, browser }: { entry: ChatEn
         const reservation = await browser.acquire('plug-chat')
         lease = reservation.lease
         if (disposed) { await browser.release(lease); return }
-        element = document.createElement('webview') as WebviewElement
-        element.setAttribute('partition', reservation.partition)
-        element.setAttribute('name', reservation.lease)
-        element.setAttribute('allowpopups', '')
-        element.style.cssText = 'width:100%;height:100%;border:0;display:flex;min-height:0;'
-        host.replaceChildren(element)
-        frameRef.current = element
-        await element.loadURL(entry.url)
+        const view = document.createElement('webview') as WebviewElement
+        element = view
+        view.setAttribute('partition', reservation.partition)
+        view.setAttribute('name', reservation.lease)
+        view.setAttribute('allowpopups', '')
+        // The desktop shell only attaches a guest whose src carries the lease id.
+        view.setAttribute('src', 'about:blank#' + reservation.lease)
+        view.style.cssText = 'width:100%;height:100%;border:0;display:flex;min-height:0;'
+        host.replaceChildren(view)
+        frameRef.current = view
+        await new Promise<void>((resolve, reject) => {
+          let timer = 0
+          const cleanup = (): void => {
+            view.removeEventListener('dom-ready', onReady)
+            view.removeEventListener('did-fail-load', onFail)
+            if (timer) window.clearTimeout(timer)
+          }
+          const onReady = (): void => { cleanup(); resolve() }
+          const onFail = (event: Event): void => {
+            const detail = event as Event & { errorCode?: number; errorDescription?: string }
+            if (detail.errorCode === -3) return
+            cleanup()
+            reject(new Error(detail.errorDescription || '官方页面加载失败。'))
+          }
+          view.addEventListener('dom-ready', onReady, { once: true })
+          view.addEventListener('did-fail-load', onFail)
+          timer = window.setTimeout(() => { cleanup(); reject(new Error('官方页面加载超时。')) }, 15000)
+        })
+        if (disposed) return
+        await view.loadURL(entry.url)
         onStatus(provider.name + ' 已打开；登录状态由宿主浏览器管理。')
       } catch (error) { onStatus(error instanceof Error ? error.message : '网页打开失败。') }
     }
@@ -98,7 +120,7 @@ function OfficialLauncher({ entry, onOpen, status }: { entry: ChatEntry; onOpen:
 function ChatPanel({ ctx }: { ctx: DshContext }) {
   const [chats, setChats] = useState<ChatEntry[]>(initialChats)
   const [selected, setSelected] = useState('deepseek')
-  const [browserMode, setBrowserMode] = useState<'official' | 'embedded'>('official')
+  const [browserMode, setBrowserMode] = useState<'official' | 'embedded'>(ctx.sidebarRight ? 'official' : 'embedded')
   const [urlDraft, setUrlDraft] = useState('')
   const [sessions, setSessions] = useState<SessionTarget[]>([])
   const [targetId, setTargetId] = useState('')
