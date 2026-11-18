@@ -16,4 +16,11 @@
 
 ## 最近完成
 
+- 修复 Client 模块注册契约：factory 返回值补齐顶层 `inject = ['sessions','slots','locale']`，`apply` 改为先注册 `main` 再注册 `sidebar.panellist`，与官方插件一致；移除未注册的 locale 命名空间。
+- `validate:bundle` 增加注册契约校验；新增源码与 `client.js` 产物两层契约测试。
+
 ## 最近验证
+
+- `npm run check` 通过（26 项测试、构建、组合包校验）。
+- 已把本机 profile 的 `plug-chat` 依赖从旧提交更新到修复提交，并同步已安装 `client.js`（哈希与仓库一致）；宿主需重启后加载新模块。
+- 仍未完成：在真实宿主界面确认侧栏入口出现、以及五个站点的真实登录提取。
